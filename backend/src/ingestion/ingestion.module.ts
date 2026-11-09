@@ -6,13 +6,14 @@ import { Env } from '../config/env';
 import { DatabaseModule } from '../database/database.module';
 import { LocalTimeResolver } from '../shared/time/local-time';
 import { Ds18b20QualityPolicy } from '../telemetry/domain/reading-quality';
-import { IngestionRunner } from './ingestion.runner';
-import { IngestionStore } from './ingestion.store';
-import { PacketEnricher } from './packet-enricher';
-import { pacerFor } from './pacer';
-import { PgIngestionStore } from './pg-ingestion.store';
-import { JsonlFileSource } from './telemetry-source';
-import { PgZoneDirectoryLoader, ZoneDirectoryLoader } from './zone-directory';
+import { IngestionRunner } from './services/ingestion.runner';
+import { IngestionStore } from './interfaces/ingestion-store.interface';
+import { PacketEnricher } from './services/packet-enricher';
+import { pacerFor } from './services/pacer';
+import { PgIngestionStore } from './repositories/pg-ingestion.store';
+import { JsonlFileSource } from './repositories/jsonl-file.source';
+import { PgZoneDirectoryLoader } from './repositories/pg-zone-directory.loader';
+import { ZoneDirectoryLoader } from './interfaces/zone-directory.interface';
 
 @Module({
   imports: [AppConfigModule, DatabaseModule],

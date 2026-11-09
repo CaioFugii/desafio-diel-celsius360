@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Env } from '../config/env';
 import { RegistrySeedModule } from './registry-seed.module';
-import { RegistrySeedService } from './registry-seed.service';
+import { RegistrySeedService } from './services/registry-seed.service';
 
 async function main() {
   const app = await NestFactory.createApplicationContext(RegistrySeedModule, {

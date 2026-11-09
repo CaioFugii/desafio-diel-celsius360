@@ -56,7 +56,7 @@ describe('standalone modules (seed and ingestion)', () => {
       'RegistrySeedModule',
     );
     const { RegistrySeedService } =
-      await import('../../src/registry/registry-seed.service');
+      await import('../../src/registry/services/registry-seed.service');
 
     const report = await moduleRef
       .get(RegistrySeedService)
@@ -72,7 +72,7 @@ describe('standalone modules (seed and ingestion)', () => {
       'IngestionModule',
     );
     const { IngestionRunner } =
-      await import('../../src/ingestion/ingestion.runner');
+      await import('../../src/ingestion/services/ingestion.runner');
 
     const report = await moduleRef.get(IngestionRunner).run();
 

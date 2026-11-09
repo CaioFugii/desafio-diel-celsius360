@@ -2,17 +2,15 @@ import { readFileSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { Pool } from 'pg';
-import { parseRegistry } from '../../src/registry/registry-file.parser';
-import { PgRegistryWriter } from '../../src/registry/registry.writer';
-import {
-  IngestionReport,
-  IngestionRunner,
-} from '../../src/ingestion/ingestion.runner';
-import { PacketEnricher } from '../../src/ingestion/packet-enricher';
-import { UnthrottledPacer } from '../../src/ingestion/pacer';
-import { PgIngestionStore } from '../../src/ingestion/pg-ingestion.store';
-import { JsonlFileSource } from '../../src/ingestion/telemetry-source';
-import { PgZoneDirectoryLoader } from '../../src/ingestion/zone-directory';
+import { parseRegistry } from '../../src/registry/parsers/registry-file.parser';
+import { PgRegistryWriter } from '../../src/registry/repositories/pg-registry.writer';
+import { IngestionReport } from '../../src/ingestion/interfaces/ingestion-runner.interface';
+import { IngestionRunner } from '../../src/ingestion/services/ingestion.runner';
+import { PacketEnricher } from '../../src/ingestion/services/packet-enricher';
+import { UnthrottledPacer } from '../../src/ingestion/services/pacer';
+import { PgIngestionStore } from '../../src/ingestion/repositories/pg-ingestion.store';
+import { JsonlFileSource } from '../../src/ingestion/repositories/jsonl-file.source';
+import { PgZoneDirectoryLoader } from '../../src/ingestion/repositories/pg-zone-directory.loader';
 import { LocalTimeResolver } from '../../src/shared/time/local-time';
 import { Ds18b20QualityPolicy } from '../../src/telemetry/domain/reading-quality';
 

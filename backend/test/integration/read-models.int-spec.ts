@@ -1,7 +1,7 @@
-import { PgIngestionStatusReadModel } from '../../src/monitoring/ingestion-status/ingestion-status.read-model';
-import { PgReferenceClock } from '../../src/monitoring/reference-clock';
-import { PgNetworkReadModel } from '../../src/monitoring/stores/network.read-model';
-import { PgZonesReadModel } from '../../src/monitoring/zones/zones.read-model';
+import { PgIngestionStatusReadModel } from '../../src/monitoring/ingestion-status/repositories/pg-ingestion-status.read-model';
+import { PgReferenceClock } from '../../src/monitoring/repositories/pg-reference-clock';
+import { PgNetworkReadModel } from '../../src/monitoring/stores/repositories/pg-network.read-model';
+import { PgZonesReadModel } from '../../src/monitoring/zones/repositories/pg-zones.read-model';
 import { OFFLINE_AFTER_MS } from '../../src/monitoring/domain/status';
 import {
   SCENARIO_LINES,

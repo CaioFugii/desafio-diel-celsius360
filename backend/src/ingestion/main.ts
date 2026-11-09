@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { IngestionModule } from './ingestion.module';
-import { IngestionRunner } from './ingestion.runner';
+import { IngestionRunner } from './services/ingestion.runner';
 
 async function main() {
   const app = await NestFactory.createApplicationContext(IngestionModule, {

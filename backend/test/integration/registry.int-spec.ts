@@ -1,7 +1,7 @@
-import { parseRegistry } from '../../src/registry/registry-file.parser';
-import { PgRegistryWriter } from '../../src/registry/registry.writer';
-import { PgCustomersReader } from '../../src/registry/customers.reader';
-import { PgZoneDirectoryLoader } from '../../src/ingestion/zone-directory';
+import { parseRegistry } from '../../src/registry/parsers/registry-file.parser';
+import { PgRegistryWriter } from '../../src/registry/repositories/pg-registry.writer';
+import { PgCustomersReader } from '../../src/registry/repositories/pg-customers.reader';
+import { PgZoneDirectoryLoader } from '../../src/ingestion/repositories/pg-zone-directory.loader';
 import { registryInput } from '../support/scenario';
 import {
   TestDatabase,

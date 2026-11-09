@@ -9,8 +9,6 @@ const base = {
 module.exports = {
   collectCoverageFrom: [
     'src/**/*.ts',
-    '!src/**/*.spec.ts',
-    '!src/**/testing/**',
     '!src/main.ts',
     '!src/ingestion/main.ts',
     '!src/registry/seed.ts',
@@ -25,7 +23,7 @@ module.exports = {
     {
       ...base,
       displayName: 'unit',
-      roots: ['<rootDir>/src'],
+      roots: ['<rootDir>/test/unit'],
       testRegex: '.*\\.spec\\.ts$',
     },
     {

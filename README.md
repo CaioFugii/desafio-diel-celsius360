@@ -72,7 +72,7 @@ pnpm --filter frontend test -- --coverage
 | Backend | 28 | 185 | 99,1% / 94,2% |
 | Frontend | 13 | 74 | 100% / 97,8% |
 
-- **Unitários**: regras de domínio puras (horário de funcionamento por fuso, qualidade da leitura, conforto, status, resolução), serviços com fakes das portas e parser do cadastro.
+- **Unitários** (`backend/test/unit`, espelhando `backend/src`): regras de domínio puras (horário de funcionamento por fuso, qualidade da leitura, conforto, status, resolução), serviços com fakes das portas e parser do cadastro.
 - **Integração** (`backend/test/integration`): cada suíte cria um banco novo no TimescaleDB, aplica as migrações e exercita o caminho real: seed do cadastro, ingestão (duplicatas, pacotes atrasados, retomada pelo checkpoint, reprocessamento sem alterar contagens), read models sobre os continuous aggregates e a API HTTP com supertest.
 - **Frontend**: React Testing Library contra uma API falsa injetada por contexto, cobrindo filtros na URL, ordenação, paginação, expansão de lojas, troca de período, lacunas no gráfico e estados de erro.
 - O Jest falha se a cobertura cair abaixo de 95% (statements, funções, linhas) ou 90% (branches), nos dois projetos.
@@ -119,6 +119,19 @@ flowchart LR
   | `registry` | parser e validação do `cadastro.json`, gravação idempotente, `GET /customers` |
   | `ingestion` | fonte JSONL, controle de taxa, enriquecimento, persistência em lote, runner, entrypoint |
   | `monitoring` | regras de status e resolução, read models, serviços e controllers da API |
+
+  Dentro de cada módulo (e de cada funcionalidade de `monitoring`: `stores`, `zones`, `ingestion-status`):
+
+  - `controllers/`: rotas HTTP, sem regra de negócio;
+  - `services/`: casos de uso, que dependem só das portas;
+  - `interfaces/`: portas (classes abstratas usadas como token de injeção, como `NetworkReadModel`, `IngestionStore` e `DatabaseHealth`) e os tipos de dados que elas trocam;
+  - `repositories/`: implementações das portas (`pg-*.ts`, `jsonl-file.source.ts`, `map-zone-directory.ts`);
+  - `domain/`: regras puras, sem Nest nem banco (por exemplo `zone-range.ts` lança `InvalidRangeError`, e o service traduz para HTTP 400);
+  - `parsers/`: validação do `cadastro.json`;
+  - `dto/`: entrada validada pelo `ValidationPipe` (`*.query.dto.ts`) e contratos de resposta documentados no Swagger (`*.response.dto.ts`);
+  - na raiz do módulo, só o `*.module.ts` (que liga cada porta à sua implementação) e os entrypoints de processo.
+
+  Regras compartilhadas entre módulos ficam em `shared/time`. O `src` contém só código de produção; testes, fakes e fixtures ficam em `backend/test`.
 
 - **Organização do frontend** (`frontend/src`): `api/` (cliente HTTP, API tipada, hooks do TanStack Query), `components/` (badge, medidor de conforto, seletor de período, paginação), `features/network` e `features/zone` (as duas telas, com a lógica pura separada em `*-params.ts` e `chart-data.ts`).
 

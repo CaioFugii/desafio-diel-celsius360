@@ -1,5 +1,5 @@
 import { appendFileSync } from 'node:fs';
-import { PgIngestionStore } from '../../src/ingestion/pg-ingestion.store';
+import { PgIngestionStore } from '../../src/ingestion/repositories/pg-ingestion.store';
 import {
   SCENARIO_LINES,
   SCENARIO_NOW,
