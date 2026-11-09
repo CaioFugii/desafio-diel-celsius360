@@ -5,7 +5,8 @@ import { createMonitoringApi } from './monitoring-api';
 
 describe('createMonitoringApi', () => {
   const http = { get: jest.fn().mockResolvedValue('result') } satisfies HttpClient;
-  const api = createMonitoringApi(http);
+  const subscribe = jest.fn();
+  const api = createMonitoringApi(http, subscribe);
   const signal = new AbortController().signal;
 
   beforeEach(() => http.get.mockClear());
@@ -26,6 +27,10 @@ describe('createMonitoringApi', () => {
     await api.zoneSeries('AMB 1', '30d', signal);
     expect(http.get).toHaveBeenNthCalledWith(1, '/zones/AMB%201/summary', { period: '7d' }, signal);
     expect(http.get).toHaveBeenNthCalledWith(2, '/zones/AMB%201/series', { period: '30d' }, signal);
+  });
+
+  it('delegates live updates to the event stream', () => {
+    expect(api.subscribeToUpdates).toBe(subscribe);
   });
 });
 

@@ -15,6 +15,7 @@ export function fakeApi(overrides: Partial<FakeApi> = {}): FakeApi {
     listCustomers: jest.fn().mockResolvedValue(CUSTOMERS),
     zoneSummary: jest.fn().mockResolvedValue(zoneSummary()),
     zoneSeries: jest.fn().mockResolvedValue(zoneSeries()),
+    subscribeToUpdates: jest.fn().mockReturnValue(() => undefined),
     ...overrides,
   };
 }

@@ -2,7 +2,7 @@
 
 Sistema que recebe telemetria crua de sensores IoT de temperatura como se chegasse em tempo real, armazena, enriquece com as regras de negócio (status, conforto térmico no horário de funcionamento) e mostra a situação da rede numa aplicação web.
 
-> **Status:** funcionalidades obrigatórias (seção 2.2 do desafio) implementadas: cadastro, ingestão contínua, enriquecimento, API documentada e as duas telas. Os diferenciais (SSE, JWT/multi-tenant, temperatura externa) estão descritos em [Próximos passos](#próximos-passos).
+> **Status:** funcionalidades obrigatórias (seção 2.2 do desafio) implementadas: cadastro, ingestão contínua, enriquecimento, API documentada e as duas telas. Dos diferenciais, o **tempo real com Server-Sent Events** está implementado ([desenho](#tempo-real-server-sent-events)); JWT/multi-tenant e temperatura externa estão descritos em [Próximos passos](#próximos-passos).
 
 ![Visão da rede](docs/screenshots/network-overview.png)
 
@@ -18,7 +18,7 @@ A subida faz tudo sozinha, nesta ordem:
 
 1. **db**: PostgreSQL 16 + TimescaleDB.
 2. **backend**: aplica as migrações, carrega `data/cadastro.json` (seed idempotente) e sobe a API.
-3. **ingestor**: lê `data/telemetrias.jsonl` linha a linha, em ordem, a 2.000 pacotes/s (cerca de 90 s para o arquivo inteiro), e termina. As telas já mostram dados durante a ingestão; o andamento fica em `GET /api/ingestion/status`.
+3. **ingestor**: lê `data/telemetrias.jsonl` linha a linha, em ordem, a 2.000 pacotes/s (cerca de 90 s para o arquivo inteiro), e termina. As telas se atualizam sozinhas enquanto a ingestão roda (o indicador "Ao vivo" no cabeçalho mostra a conexão de tempo real); o andamento fica em `GET /api/ingestion/status`.
 4. **frontend**: build do React servido por nginx, com proxy de `/api` para o backend.
 
 | Serviço | URL |
@@ -69,12 +69,12 @@ pnpm --filter frontend test -- --coverage
 
 | | Suítes | Testes | Cobertura (statements / branches) |
 | --- | --- | --- | --- |
-| Backend | 28 | 185 | 99,1% / 94,2% |
-| Frontend | 13 | 74 | 100% / 97,8% |
+| Backend | 34 | 210 | 98,6% / 94,9% |
+| Frontend | 15 | 91 | 99,8% / 97,1% |
 
 - **Unitários** (`backend/test/unit`, espelhando `backend/src`): regras de domínio puras (horário de funcionamento por fuso, qualidade da leitura, conforto, status, resolução), serviços com fakes das portas e parser do cadastro.
-- **Integração** (`backend/test/integration`): cada suíte cria um banco novo no TimescaleDB, aplica as migrações e exercita o caminho real: seed do cadastro, ingestão (duplicatas, pacotes atrasados, retomada pelo checkpoint, reprocessamento sem alterar contagens), read models sobre os continuous aggregates e a API HTTP com supertest.
-- **Frontend**: React Testing Library contra uma API falsa injetada por contexto, cobrindo filtros na URL, ordenação, paginação, expansão de lojas, troca de período, lacunas no gráfico e estados de erro.
+- **Integração** (`backend/test/integration`): cada suíte cria um banco novo no TimescaleDB, aplica as migrações e exercita o caminho real: seed do cadastro, ingestão (duplicatas, pacotes atrasados, retomada pelo checkpoint, reprocessamento sem alterar contagens), read models sobre os continuous aggregates, a API HTTP com supertest e o tempo real (os `NOTIFY` de cada lote chegam pelo `LISTEN`, um stream SSE de verdade recebe os eventos e é encerrado quando a API desliga).
+- **Frontend**: React Testing Library contra uma API falsa injetada por contexto, cobrindo filtros na URL, ordenação, paginação, expansão de lojas, troca de período, lacunas no gráfico, estados de erro e as atualizações em tempo real (com um `EventSource` falso).
 - O Jest falha se a cobertura cair abaixo de 95% (statements, funções, linhas) ou 90% (branches), nos dois projetos.
 - **CI** (`.github/workflows/ci.yml`): lint, typecheck, testes com cobertura e build de cada projeto (o backend com um serviço TimescaleDB), mais um smoke test que sobe o `docker compose` e consulta o health check.
 
@@ -87,7 +87,7 @@ flowchart LR
 
   subgraph backend["backend (NestJS)"]
     seed["migrações + seed"]
-    api["API REST<br/>/api/stores, /api/zones/..."]
+    api["API REST + SSE<br/>/api/stores, /api/zones/...,<br/>/api/events"]
   end
 
   ingestor["ingestor (NestJS standalone)<br/>parse → qualidade → enriquecimento<br/>lote transacional + checkpoint"]
@@ -105,22 +105,24 @@ flowchart LR
   ingestor -. "lê ambiente, faixa e horário" .-> cad
   samples --> caggs
   api --> cad & caggs & state
-  web["web (React + Vite, nginx)"] -- "/api" --> api
+  ingestor -. "pg_notify a cada lote" .-> api
+  web["web (React + Vite, nginx)"] -- "/api (REST e SSE)" --> api
 ```
 
 - **Dois processos com a mesma imagem.** A API e o ingestor compartilham o código do backend, mas rodam separados: a ingestão pode parar, reiniciar ou escalar sem derrubar a API, e um pico de leitura na API não atrasa a ingestão.
-- **Portas e adaptadores.** Os módulos dependem de abstrações (`IngestionStore`, `TelemetrySource`, `ZoneDirectoryLoader`, `NetworkReadModel`, `ZonesReadModel`, `ReferenceClock`...), registradas como tokens de injeção do Nest. As implementações Postgres ficam nas bordas, e as regras de negócio são funções e classes puras, testadas sem banco.
+- **Portas e adaptadores.** Os módulos dependem de abstrações (`IngestionStore`, `TelemetrySource`, `ZoneDirectoryLoader`, `IngestionNotifier`, `NetworkReadModel`, `ZonesReadModel`, `IngestionFeed`, `ReferenceClock`...), registradas como tokens de injeção do Nest. As implementações Postgres ficam nas bordas, e as regras de negócio são funções e classes puras, testadas sem banco.
 - **Organização do backend** (`backend/src`):
 
   | Módulo | Responsabilidade |
   | --- | --- |
   | `shared/time` | fuso horário, horário semanal, períodos (`1d`, `7d`, `30d`) |
+  | `shared/events` | contrato do evento de progresso da ingestão (canal e formato do `NOTIFY`) |
   | `telemetry/domain` | parser do pacote, política de qualidade (DS18B20), classificação de conforto |
   | `registry` | parser e validação do `cadastro.json`, gravação idempotente, `GET /customers` |
-  | `ingestion` | fonte JSONL, controle de taxa, enriquecimento, persistência em lote, runner, entrypoint |
-  | `monitoring` | regras de status e resolução, read models, serviços e controllers da API |
+  | `ingestion` | fonte JSONL, controle de taxa, enriquecimento, persistência em lote, aviso de lote gravado, runner, entrypoint |
+  | `monitoring` | regras de status e resolução, read models, serviços e controllers da API, tempo real (SSE) |
 
-  Dentro de cada módulo (e de cada funcionalidade de `monitoring`: `stores`, `zones`, `ingestion-status`):
+  Dentro de cada módulo (e de cada funcionalidade de `monitoring`: `stores`, `zones`, `ingestion-status`, `live`):
 
   - `controllers/`: rotas HTTP, sem regra de negócio;
   - `services/`: casos de uso, que dependem só das portas;
@@ -131,9 +133,9 @@ flowchart LR
   - `dto/`: entrada validada pelo `ValidationPipe` (`*.query.dto.ts`) e contratos de resposta documentados no Swagger (`*.response.dto.ts`);
   - na raiz do módulo, só o `*.module.ts` (que liga cada porta à sua implementação) e os entrypoints de processo.
 
-  Regras compartilhadas entre módulos ficam em `shared/time`. O `src` contém só código de produção; testes, fakes e fixtures ficam em `backend/test`.
+  Regras e contratos compartilhados entre módulos ficam em `shared/time` e `shared/events`. O `src` contém só código de produção; testes, fakes e fixtures ficam em `backend/test`.
 
-- **Organização do frontend** (`frontend/src`): `api/` (cliente HTTP, API tipada, hooks do TanStack Query), `components/` (badge, medidor de conforto, seletor de período, paginação), `features/network` e `features/zone` (as duas telas, com a lógica pura separada em `*-params.ts` e `chart-data.ts`).
+- **Organização do frontend** (`frontend/src`): `api/` (cliente HTTP, API tipada, hooks do TanStack Query, conexão de tempo real), `components/` (badge, medidor de conforto, seletor de período, paginação), `features/network` e `features/zone` (as duas telas, com a lógica pura separada em `*-params.ts` e `chart-data.ts`).
 
 ## API
 
@@ -145,6 +147,7 @@ Documentação interativa em `/api/docs` (OpenAPI gerado a partir dos DTOs). Tod
 | `GET /api/zones/:zoneId/series` | Série de temperatura (média, mínima, máxima e nº de leituras por bucket), faixa de conforto e lacunas. `period` ou `from` + `to` (ISO 8601, até 92 dias). A resolução é escolhida pelo tamanho do intervalo. |
 | `GET /api/zones/:zoneId/summary` | Ambiente, loja, cliente, dispositivo, leitura atual e indicadores do período: % na faixa, abaixo e acima, média, mínima, máxima, disponibilidade, lacunas e leituras descartadas. |
 | `GET /api/customers` | Clientes com quantidade de lojas (alimenta o filtro). |
+| `GET /api/events` | Stream `text/event-stream` (Server-Sent Events). Evento `ingestion` (`{ referenceTime, zoneIds }`, no máximo um por segundo) quando a ingestão grava dados novos; `zoneIds` nulo significa "qualquer ambiente". Evento `heartbeat` a cada 25 s para manter a conexão aberta em proxies. |
 | `GET /api/ingestion/status` | Checkpoint por arquivo, totais (pacotes crus, amostras, leituras descartadas, linhas inválidas) e dispositivos fora do cadastro. |
 | `GET /api/health` | Saúde da API e do banco. |
 
@@ -236,6 +239,16 @@ Resultado: 180.951 pacotes crus, 2.152.132 leituras válidas e 332 descartadas (
 - **Quando isso deixar de bastar:** o ingestor passa a manter uma tabela de status por ambiente, e filtro, ordenação e paginação (por cursor) descem para o SQL.
 - **Consistência.** Os agregados usam agregação em tempo real (`materialized_only = false`): uma leitura nova aparece na hora, mesmo antes do refresh. Um pacote atrasado que cai num bucket já materializado aparece depois do próximo refresh (30 s, 1 min e 2 min, nos três níveis).
 
+### Tempo real (Server-Sent Events)
+
+- **Por que SSE.** O fluxo é unidirecional (servidor → navegador), então WebSocket não traria nada além de complexidade: SSE é HTTP comum, atravessa proxies, reconecta sozinho e o Nest tem suporte nativo (`@Sse()`). O nginx faz proxy de `/api` com `proxy_buffering off` e timeout de 1 h.
+- **Do ingestor à API pelo Postgres.** Depois de confirmar cada lote, o ingestor chama `pg_notify('ingestion_progress', ...)` com a última linha, o "agora" e os ambientes afetados (porta `IngestionNotifier`). A API escuta com `LISTEN` (porta `IngestionFeed`). Não há broker extra: o banco que os dois processos já usam faz a ponte, e o evento só sai depois do `COMMIT`, quando os dados já estão visíveis para as consultas.
+- **Uma conexão para todos os navegadores.** A API abre uma única conexão `LISTEN`, compartilhada por todos os streams (`share()` do RxJS): ela abre com o primeiro navegador, fecha quando o último sai e, se cair, reconecta após 2 s.
+- **Agrupamento.** Com 2.000 pacotes/s, a ingestão confirma vários lotes por segundo. A API junta os avisos em janelas de 1 s (maior "agora" e união dos ambientes), então cada navegador recebe no máximo um evento por segundo. Acima de 300 ambientes num lote, o aviso diz só "qualquer ambiente", para caber no limite de 8 kB do `NOTIFY`.
+- **No navegador.** O evento invalida as consultas afetadas do TanStack Query: a lista de lojas sempre, e o resumo e a série só dos ambientes citados. Uma requisição em andamento não é reiniciada, para que eventos frequentes não impeçam a consulta de terminar. Na atualização em tempo real, os painéis não ficam esmaecidos como na troca de filtro; o efeito visual fica reservado para mudanças pedidas pelo usuário.
+- **Sem replay, e por isso sem perda.** O aviso é só um gatilho: os dados vêm sempre da API. Depois de uma reconexão, o navegador invalida tudo, cobrindo os eventos perdidos. Por isso o `NOTIFY` pode ser best effort: se falhar, o ingestor registra um aviso e segue, e a ingestão nunca para por causa do tempo real. Se o servidor responder com erro (por exemplo, 502 enquanto a API reinicia), o `EventSource` desiste; nesse caso o cliente abre uma nova conexão após 5 s.
+- **Indicador.** O cabeçalho mostra "Ao vivo", "Conectando…" ou "Reconectando…" (com `role="status"`), para o usuário saber se os números podem estar desatualizados.
+
 ### Aplicação web
 
 - **React 18 + Vite + TanStack Query.** Cache por chave de consulta, cancelamento da requisição anterior ao trocar de filtro e `keepPreviousData` para a tabela e o gráfico não piscarem ao paginar ou trocar de período.
@@ -258,7 +271,6 @@ O código (identificadores, comentários e descrições dos testes) usa inglês:
 
 Diferenciais do desafio ainda não implementados, com o desenho previsto:
 
-- **Tempo real com Server-Sent Events.** O fluxo é unidirecional (servidor → navegador), então SSE basta: é HTTP comum, atravessa proxies, reconecta sozinho com `Last-Event-ID` e o Nest tem suporte nativo (`@Sse()`). O ingestor publicaria via `LISTEN/NOTIFY` do Postgres a cada lote, e a API repassaria aos navegadores, que invalidariam as consultas afetadas do TanStack Query. O nginx já faz proxy de `/api` com `proxy_buffering off`.
 - **Autenticação JWT e multi-tenant.** Login devolvendo um JWT com perfil e escopo (`customerId`, lojas), guard global e um serviço de escopo que injeta o filtro em todos os read models (o `StoreFilter` já recebe `customerId`), com testes de vazamento entre clientes. O cadastro já modela perfis e vínculos; `JWT_SECRET` já é exigido na configuração.
 - **Temperatura externa (Open-Meteo).** Coleta horária por coordenada da loja, numa tabela própria, sobreposta ao gráfico.
 - **Reprocessamento com reclassificação.** Hoje o reprocessamento é seguro (não duplica), mas não reclassifica leituras já gravadas. Para aplicar uma nova faixa ou um novo horário ao histórico: reclassificar `telemetry.samples` do ambiente no período (`UPDATE` por chunk) e chamar `refresh_continuous_aggregate` na mesma janela.

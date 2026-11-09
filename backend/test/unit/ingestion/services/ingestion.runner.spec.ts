@@ -7,7 +7,9 @@ import {
   IngestionBatch,
   IngestionStore,
 } from '../../../../src/ingestion/interfaces/ingestion-store.interface';
+import { IngestionNotifier } from '../../../../src/ingestion/interfaces/ingestion-notifier.interface';
 import { PacketEnricher } from '../../../../src/ingestion/services/packet-enricher';
+import { IngestionProgress } from '../../../../src/shared/events/ingestion-progress';
 import { Pacer } from '../../../../src/ingestion/interfaces/pacer.interface';
 import {
   SourceLine,
@@ -57,6 +59,22 @@ class InMemoryStore extends IngestionStore {
   }
 }
 
+class RecordingNotifier extends IngestionNotifier {
+  notified: Array<{ progress: IngestionProgress; persistedBatches: number }> =
+    [];
+
+  constructor(private readonly store: InMemoryStore) {
+    super();
+  }
+
+  async batchCommitted(progress: IngestionProgress): Promise<void> {
+    this.notified.push({
+      progress,
+      persistedBatches: this.store.batches.length,
+    });
+  }
+}
+
 class RecordingPacer implements Pacer {
   throttled: number[] = [];
 
@@ -80,10 +98,12 @@ function runner(
   pacer = new RecordingPacer(),
   options: Partial<IngestionOptions> = {},
   texts = lines,
+  notifier = new RecordingNotifier(store),
 ) {
   return new IngestionRunner(
     new ArraySource(texts),
     store,
+    notifier,
     new PacketEnricher(
       directoryOf({ IOT001: zoneContext() }),
       new Ds18b20QualityPolicy(),
@@ -144,6 +164,43 @@ describe('IngestionRunner', () => {
       { lineNo: 3, text: 'garbage', reason: 'invalid_json' },
     ]);
     expect(store.batches[1].packets.map((p) => p.lineNo)).toEqual([4]);
+  });
+
+  it('notifies each committed batch with the zones it touched and the current "now"', async () => {
+    const store = new InMemoryStore();
+    const notifier = new RecordingNotifier(store);
+
+    await runner(store, undefined, {}, lines, notifier).run();
+
+    expect(notifier.notified).toEqual([
+      {
+        persistedBatches: 1,
+        progress: {
+          source: 'test.jsonl',
+          lastLine: 2,
+          referenceTime: new Date('2026-01-12T12:06:00Z'),
+          zoneIds: ['AMB-001'],
+        },
+      },
+      {
+        persistedBatches: 2,
+        progress: {
+          source: 'test.jsonl',
+          lastLine: 4,
+          referenceTime: new Date('2026-01-12T12:07:00Z'),
+          zoneIds: [],
+        },
+      },
+      {
+        persistedBatches: 3,
+        progress: {
+          source: 'test.jsonl',
+          lastLine: 5,
+          referenceTime: new Date('2026-01-12T12:07:00Z'),
+          zoneIds: ['AMB-001'],
+        },
+      },
+    ]);
   });
 
   it('resumes after the stored checkpoint', async () => {

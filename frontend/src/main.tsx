@@ -8,6 +8,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { ApiProvider } from './api/ApiProvider';
 import { createHttpClient } from './api/http';
+import { createLiveUpdates } from './api/live-updates';
 import { createMonitoringApi } from './api/monitoring-api';
 import App from './App';
 import './index.css';
@@ -18,7 +19,11 @@ const queryClient = new QueryClient({
     queries: { staleTime: 30_000, retry: 1, refetchOnWindowFocus: false },
   },
 });
-const api = createMonitoringApi(createHttpClient(import.meta.env.VITE_API_URL ?? '/api'));
+const apiUrl = import.meta.env.VITE_API_URL ?? '/api';
+const api = createMonitoringApi(
+  createHttpClient(apiUrl),
+  createLiveUpdates(`${apiUrl}/events`),
+);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

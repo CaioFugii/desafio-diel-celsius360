@@ -7,9 +7,11 @@ import { DatabaseModule } from '../database/database.module';
 import { LocalTimeResolver } from '../shared/time/local-time';
 import { Ds18b20QualityPolicy } from '../telemetry/domain/reading-quality';
 import { IngestionRunner } from './services/ingestion.runner';
+import { IngestionNotifier } from './interfaces/ingestion-notifier.interface';
 import { IngestionStore } from './interfaces/ingestion-store.interface';
 import { PacketEnricher } from './services/packet-enricher';
 import { pacerFor } from './services/pacer';
+import { PgIngestionNotifier } from './repositories/pg-ingestion.notifier';
 import { PgIngestionStore } from './repositories/pg-ingestion.store';
 import { JsonlFileSource } from './repositories/jsonl-file.source';
 import { PgZoneDirectoryLoader } from './repositories/pg-zone-directory.loader';
@@ -19,13 +21,20 @@ import { ZoneDirectoryLoader } from './interfaces/zone-directory.interface';
   imports: [AppConfigModule, DatabaseModule],
   providers: [
     { provide: IngestionStore, useClass: PgIngestionStore },
+    { provide: IngestionNotifier, useClass: PgIngestionNotifier },
     { provide: ZoneDirectoryLoader, useClass: PgZoneDirectoryLoader },
     {
       provide: IngestionRunner,
-      inject: [ConfigService, IngestionStore, ZoneDirectoryLoader],
+      inject: [
+        ConfigService,
+        IngestionStore,
+        IngestionNotifier,
+        ZoneDirectoryLoader,
+      ],
       useFactory: async (
         config: ConfigService<Env, true>,
         store: IngestionStore,
+        notifier: IngestionNotifier,
         loader: ZoneDirectoryLoader,
       ) => {
         const logger = new Logger('Ingestion');
@@ -39,6 +48,7 @@ import { ZoneDirectoryLoader } from './interfaces/zone-directory.interface';
             ),
           ),
           store,
+          notifier,
           new PacketEnricher(
             directory,
             new Ds18b20QualityPolicy(),

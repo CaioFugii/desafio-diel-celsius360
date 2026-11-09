@@ -56,7 +56,7 @@ export function ZonePage() {
 
       <ZoneIndicators indicators={data.indicators} />
 
-      <section className="panel" aria-busy={series.isFetching}>
+      <section className="panel" aria-busy={series.isFetching && series.isPlaceholderData}>
         <h2>Temperatura</h2>
         {series.isPending && <Loading label="Carregando série…" />}
         {series.isError && <ErrorMessage error={series.error} onRetry={() => series.refetch()} />}

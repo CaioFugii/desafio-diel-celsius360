@@ -5,6 +5,7 @@ import {
   IngestionBatch,
   IngestionStore,
 } from '../interfaces/ingestion-store.interface';
+import { IngestionNotifier } from '../interfaces/ingestion-notifier.interface';
 import { PacketEnricher } from './packet-enricher';
 import { Pacer } from '../interfaces/pacer.interface';
 import {
@@ -16,10 +17,18 @@ import {
   IngestionReport,
 } from '../interfaces/ingestion-runner.interface';
 
+function zonesOf(batch: IngestionBatch): string[] {
+  const zones = new Set<string>();
+  for (const { enriched } of batch.packets)
+    if (enriched.zoneId !== null) zones.add(enriched.zoneId);
+  return [...zones];
+}
+
 export class IngestionRunner {
   constructor(
     private readonly source: TelemetrySource,
     private readonly store: IngestionStore,
+    private readonly notifier: IngestionNotifier,
     private readonly enricher: PacketEnricher,
     private readonly pacer: Pacer,
     private readonly options: IngestionOptions,
@@ -97,6 +106,12 @@ export class IngestionRunner {
     if (latest && (!report.referenceTime || latest > report.referenceTime)) {
       report.referenceTime = latest;
     }
+    await this.notifier.batchCommitted({
+      source: batch.source,
+      lastLine: batch.lastLine,
+      referenceTime: report.referenceTime,
+      zoneIds: zonesOf(batch),
+    });
     await this.pacer.throttle(lines.length);
   }
 

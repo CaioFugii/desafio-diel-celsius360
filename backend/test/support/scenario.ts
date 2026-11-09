@@ -9,6 +9,7 @@ import { IngestionRunner } from '../../src/ingestion/services/ingestion.runner';
 import { PacketEnricher } from '../../src/ingestion/services/packet-enricher';
 import { UnthrottledPacer } from '../../src/ingestion/services/pacer';
 import { PgIngestionStore } from '../../src/ingestion/repositories/pg-ingestion.store';
+import { PgIngestionNotifier } from '../../src/ingestion/repositories/pg-ingestion.notifier';
 import { JsonlFileSource } from '../../src/ingestion/repositories/jsonl-file.source';
 import { PgZoneDirectoryLoader } from '../../src/ingestion/repositories/pg-zone-directory.loader';
 import { LocalTimeResolver } from '../../src/shared/time/local-time';
@@ -77,6 +78,7 @@ export async function ingest(
   const runner = new IngestionRunner(
     new JsonlFileSource(file),
     new PgIngestionStore(pool),
+    new PgIngestionNotifier(pool),
     new PacketEnricher(
       await new PgZoneDirectoryLoader(pool).load(),
       new Ds18b20QualityPolicy(),

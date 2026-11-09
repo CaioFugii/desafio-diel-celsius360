@@ -1,5 +1,6 @@
 import { Suspense, lazy } from 'react';
 import { Link, Route, Routes } from 'react-router-dom';
+import { useLiveUpdates } from './api/use-live-updates';
 import { Layout } from './components/Layout';
 import { Empty, Loading } from './components/QueryState';
 import { NetworkPage } from './features/network/NetworkPage';
@@ -10,8 +11,9 @@ const ZonePage = lazy(() =>
 );
 
 export default function App() {
+  const live = useLiveUpdates();
   return (
-    <Layout>
+    <Layout live={live}>
       <Suspense fallback={<Loading />}>
         <Routes>
           <Route path="/" element={<NetworkPage />} />

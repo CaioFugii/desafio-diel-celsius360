@@ -1,7 +1,9 @@
 import { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { LiveStatus } from '../api/types';
+import { LiveIndicator } from './LiveIndicator';
 
-export function Layout({ children }: { children: ReactNode }) {
+export function Layout({ live, children }: { live: LiveStatus; children: ReactNode }) {
   return (
     <div className="app">
       <header className="topbar">
@@ -10,7 +12,10 @@ export function Layout({ children }: { children: ReactNode }) {
           <span className="topbar__divider" aria-hidden="true" />
           <span className="topbar__product">Celsius 360</span>
         </Link>
-        <span className="topbar__tagline">Conforto térmico da rede</span>
+        <div className="topbar__side">
+          <span className="topbar__tagline">Conforto térmico da rede</span>
+          <LiveIndicator status={live} />
+        </div>
       </header>
       <main className="content">{children}</main>
     </div>

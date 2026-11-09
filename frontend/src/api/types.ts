@@ -146,3 +146,12 @@ export interface ZoneSummary {
     rejectedReadings: number;
   };
 }
+
+export type LiveStatus = 'connecting' | 'open' | 'reconnecting';
+
+/** Sent by the API whenever the ingestion committed new data. */
+export interface LiveUpdate {
+  referenceTime: string | null;
+  /** null means any zone may have changed. */
+  zoneIds: string[] | null;
+}

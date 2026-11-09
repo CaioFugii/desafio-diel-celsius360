@@ -1,4 +1,5 @@
 import { HttpClient } from './http';
+import { LiveListener, SubscribeToUpdates, Unsubscribe } from './live-updates';
 import {
   Customer,
   PeriodKey,
@@ -13,9 +14,13 @@ export interface MonitoringApi {
   listCustomers(signal?: AbortSignal): Promise<Customer[]>;
   zoneSummary(zoneId: string, period: PeriodKey, signal?: AbortSignal): Promise<ZoneSummary>;
   zoneSeries(zoneId: string, period: PeriodKey, signal?: AbortSignal): Promise<ZoneSeries>;
+  subscribeToUpdates(listener: LiveListener): Unsubscribe;
 }
 
-export function createMonitoringApi(http: HttpClient): MonitoringApi {
+export function createMonitoringApi(
+  http: HttpClient,
+  subscribeToUpdates: SubscribeToUpdates,
+): MonitoringApi {
   const zonePath = (zoneId: string, resource: string) =>
     `/zones/${encodeURIComponent(zoneId)}/${resource}`;
   return {
@@ -23,5 +28,6 @@ export function createMonitoringApi(http: HttpClient): MonitoringApi {
     listCustomers: (signal) => http.get('/customers', undefined, signal),
     zoneSummary: (zoneId, period, signal) => http.get(zonePath(zoneId, 'summary'), { period }, signal),
     zoneSeries: (zoneId, period, signal) => http.get(zonePath(zoneId, 'series'), { period }, signal),
+    subscribeToUpdates,
   };
 }

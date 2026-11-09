@@ -9,6 +9,12 @@ describe('App', () => {
     expect(screen.getByRole('img', { name: 'Diel Energia' })).toBeInTheDocument();
   });
 
+  it('subscribes to live updates and shows the connection state', () => {
+    const { api } = renderWithProviders(<App />, { route: '/' });
+    expect(api.subscribeToUpdates).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('status', { name: 'Tempo real' })).toHaveTextContent('Conectando…');
+  });
+
   it('routes to the zone detail', async () => {
     const { api } = renderWithProviders(<App />, { route: '/zones/AMB001' });
     expect(await screen.findByRole('heading', { name: 'Main floor' })).toBeInTheDocument();

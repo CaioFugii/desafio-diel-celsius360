@@ -44,7 +44,7 @@ export function NetworkPage() {
 
       <NetworkFilters params={params} customers={customers.data ?? []} onChange={change} />
 
-      <section className="panel" aria-busy={stores.isFetching}>
+      <section className="panel" aria-busy={stores.isFetching && stores.isPlaceholderData}>
         {stores.isPending && <Loading label="Carregando lojas…" />}
         {stores.isError && <ErrorMessage error={stores.error} onRetry={() => stores.refetch()} />}
         {stores.data && stores.data.items.length === 0 && (

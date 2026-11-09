@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { Badge } from './Badge';
 import { ComfortMeter } from './ComfortMeter';
+import { LiveIndicator } from './LiveIndicator';
 import { Pagination } from './Pagination';
 import { PeriodSelector } from './PeriodSelector';
 import { Empty, ErrorMessage, Loading } from './QueryState';
@@ -70,5 +71,17 @@ describe('QueryState', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('boom');
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
     expect(screen.getByText('nothing')).toBeInTheDocument();
+  });
+});
+
+describe('LiveIndicator', () => {
+  it.each([
+    ['open', 'Ao vivo', 'badge--success'],
+    ['connecting', 'Conectando…', 'badge--neutral'],
+    ['reconnecting', 'Reconectando…', 'badge--warning'],
+  ] as const)('shows the %s state', (status, text, tone) => {
+    render(<LiveIndicator status={status} />);
+    expect(screen.getByRole('status', { name: 'Tempo real' })).toHaveTextContent(text);
+    expect(screen.getByText(text)).toHaveClass(tone);
   });
 });
