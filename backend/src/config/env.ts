@@ -1,6 +1,7 @@
 import 'reflect-metadata';
-import { plainToInstance } from 'class-transformer';
+import { Transform, plainToInstance } from 'class-transformer';
 import {
+  IsBoolean,
   IsIn,
   IsInt,
   IsNotEmpty,
@@ -10,6 +11,15 @@ import {
   MinLength,
   validateSync,
 } from 'class-validator';
+
+// Implicit conversion would turn the string "false" into true.
+function parseBoolean(value: unknown): unknown {
+  if (value === undefined) return false;
+  if (typeof value === 'boolean') return value;
+  if (value === 'true' || value === '1') return true;
+  if (value === 'false' || value === '0' || value === '') return false;
+  return value;
+}
 
 export class Env {
   @IsIn(['development', 'production', 'test'])
@@ -33,6 +43,24 @@ export class Env {
 
   @IsString()
   DATA_DIR: string = '../data';
+
+  @IsString()
+  @IsNotEmpty()
+  INGEST_FILE: string = 'telemetrias.jsonl';
+
+  @IsInt()
+  @Min(1)
+  @Max(10_000)
+  INGEST_BATCH_SIZE: number = 500;
+
+  /** Replay speed; 0 disables throttling. */
+  @IsInt()
+  @Min(0)
+  INGEST_PACKETS_PER_SECOND: number = 2_000;
+
+  @Transform(({ obj, key }) => parseBoolean(obj[key]))
+  @IsBoolean()
+  INGEST_FROM_START: boolean = false;
 }
 
 export function validateEnv(raw: Record<string, unknown>): Env {

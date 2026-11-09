@@ -16,4 +16,6 @@ WORKDIR /app
 COPY --from=build /out .
 USER node
 EXPOSE 3000
-CMD ["sh", "-c", "node dist/database/migrate.js && exec node dist/main.js"]
+# API: migrates, loads the registry (idempotent) and starts. The ingestion service uses the
+# same image with another command (see docker-compose.yml).
+CMD ["sh", "-c", "node dist/database/migrate.js && node dist/registry/seed.js && exec node dist/main.js"]

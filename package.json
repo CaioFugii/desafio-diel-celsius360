@@ -1,7 +1,7 @@
 {
   "name": "desafio-diel-celsius360",
   "private": true,
-  "description": "Versão reduzida do Celsius 360: ingestão, enriquecimento e visualização de telemetria IoT de temperatura",
+  "description": "Reduced version of Celsius 360: ingestion, enrichment and visualization of IoT temperature telemetry",
   "packageManager": "pnpm@9.1.4",
   "engines": {
     "node": ">=22"
