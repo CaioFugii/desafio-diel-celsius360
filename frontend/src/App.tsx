@@ -1,44 +1,31 @@
-import { useEffect, useState } from 'react';
-import { fetchHealth, type HealthReport } from './api/health';
+import { Suspense, lazy } from 'react';
+import { Link, Route, Routes } from 'react-router-dom';
+import { Layout } from './components/Layout';
+import { Empty, Loading } from './components/QueryState';
+import { NetworkPage } from './features/network/NetworkPage';
 
-type State =
-  | { kind: 'loading' }
-  | { kind: 'ready'; report: HealthReport }
-  | { kind: 'error'; message: string };
+// the chart library is only needed on the zone screen
+const ZonePage = lazy(() =>
+  import('./features/zone/ZonePage').then((m) => ({ default: m.ZonePage })),
+);
 
 export default function App() {
-  const [state, setState] = useState<State>({ kind: 'loading' });
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchHealth(controller.signal)
-      .then((report) => setState({ kind: 'ready', report }))
-      .catch((err: Error) => {
-        if (err.name !== 'AbortError') setState({ kind: 'error', message: err.message });
-      });
-    return () => controller.abort();
-  }, []);
-
   return (
-    <main className="shell">
-      <h1>Celsius 360</h1>
-      <p className="subtitle">Monitoramento de conforto térmico</p>
-      <section className="card" aria-live="polite">
-        {state.kind === 'loading' && <p>Verificando o sistema…</p>}
-        {state.kind === 'error' && <p role="alert">API indisponível: {state.message}</p>}
-        {state.kind === 'ready' && (
-          <dl>
-            <dt>API</dt>
-            <dd>{state.report.status === 'ok' ? 'operacional' : 'degradada'}</dd>
-            <dt>Banco de dados</dt>
-            <dd>
-              {state.report.database.status === 'up'
-                ? `online (TimescaleDB ${state.report.database.timescaledb ?? '?'})`
-                : 'offline'}
-            </dd>
-          </dl>
-        )}
-      </section>
-    </main>
+    <Layout>
+      <Suspense fallback={<Loading />}>
+        <Routes>
+          <Route path="/" element={<NetworkPage />} />
+          <Route path="/zones/:zoneId" element={<ZonePage />} />
+          <Route
+            path="*"
+            element={
+              <Empty>
+                Página não encontrada. <Link to="/">Voltar para a visão da rede</Link>
+              </Empty>
+            }
+          />
+        </Routes>
+      </Suspense>
+    </Layout>
   );
 }

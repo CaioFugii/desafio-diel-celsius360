@@ -1,0 +1,39 @@
+import { ZoneSummary } from '../../api/types';
+import { formatDuration, formatPercent, formatTemperature } from '../../lib/format';
+import { comfortTone } from '../../lib/labels';
+
+export function ZoneIndicators({ indicators }: { indicators: ZoneSummary['indicators'] }) {
+  return (
+    <section className="kpis" aria-label="Indicadores do período">
+      <article className={`kpi kpi--${comfortTone(indicators.comfortPct)}`}>
+        <span className="kpi__label">Tempo na faixa</span>
+        <strong className="kpi__value">{formatPercent(indicators.comfortPct)}</strong>
+        <span className="kpi__hint">
+          abaixo {formatPercent(indicators.belowPct)} · acima {formatPercent(indicators.abovePct)}{' '}
+          (horário de funcionamento)
+        </span>
+      </article>
+      <article className="kpi">
+        <span className="kpi__label">Temperatura média</span>
+        <strong className="kpi__value">{formatTemperature(indicators.avgTemperature)}</strong>
+        <span className="kpi__hint">
+          mín {formatTemperature(indicators.minTemperature)} · máx{' '}
+          {formatTemperature(indicators.maxTemperature)}
+        </span>
+      </article>
+      <article className={`kpi kpi--${indicators.availabilityPct >= 95 ? 'success' : 'warning'}`}>
+        <span className="kpi__label">Disponibilidade</span>
+        <strong className="kpi__value">{formatPercent(indicators.availabilityPct)}</strong>
+        <span className="kpi__hint">
+          {indicators.gaps} {indicators.gaps === 1 ? 'falha' : 'falhas'} ·{' '}
+          {formatDuration(indicators.gapMinutes)} sem dados
+        </span>
+      </article>
+      <article className="kpi">
+        <span className="kpi__label">Leituras descartadas</span>
+        <strong className="kpi__value">{indicators.rejectedReadings}</strong>
+        <span className="kpi__hint">erro de sensor ou fora do intervalo físico</span>
+      </article>
+    </section>
+  );
+}

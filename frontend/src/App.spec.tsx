@@ -1,39 +1,23 @@
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import App from './App';
-
-function mockFetchJson(body: unknown) {
-  global.fetch = jest.fn().mockResolvedValue({ json: () => Promise.resolve(body) });
-}
+import { renderWithProviders } from './testing/render';
 
 describe('App', () => {
-  it('shows the database as online when the API is healthy', async () => {
-    mockFetchJson({
-      status: 'ok',
-      uptimeSeconds: 1,
-      database: { status: 'up', timescaledb: '2.17.2' },
-    });
-
-    render(<App />);
-
-    expect(await screen.findByText('online (TimescaleDB 2.17.2)')).toBeInTheDocument();
+  it('opens the network view with the Diel brand', async () => {
+    renderWithProviders(<App />, { route: '/' });
+    expect(await screen.findByRole('heading', { name: 'Visão da rede' })).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Diel Energia' })).toBeInTheDocument();
   });
 
-  it('unwraps the 503 payload and shows the database as offline', async () => {
-    mockFetchJson({
-      message: { status: 'degraded', uptimeSeconds: 1, database: { status: 'down' } },
-    });
-
-    render(<App />);
-
-    expect(await screen.findByText('offline')).toBeInTheDocument();
-    expect(screen.getByText('degradada')).toBeInTheDocument();
+  it('routes to the zone detail', async () => {
+    const { api } = renderWithProviders(<App />, { route: '/zones/AMB001' });
+    expect(await screen.findByRole('heading', { name: 'Main floor' })).toBeInTheDocument();
+    expect(api.zoneSummary).toHaveBeenCalledWith('AMB001', '1d', expect.anything());
   });
 
-  it('shows an alert when the API cannot be reached', async () => {
-    global.fetch = jest.fn().mockRejectedValue(new Error('Failed to fetch'));
-
-    render(<App />);
-
-    expect(await screen.findByRole('alert')).toHaveTextContent('Failed to fetch');
+  it('shows a not-found page for unknown routes', () => {
+    renderWithProviders(<App />, { route: '/nope' });
+    expect(screen.getByText(/Página não encontrada/)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Voltar para a visão da rede' })).toHaveAttribute('href', '/');
   });
 });

@@ -1,0 +1,22 @@
+import { formatPercent } from '../lib/format';
+import { comfortTone } from '../lib/labels';
+
+export function ComfortMeter({ value }: { value: number | null }) {
+  const tone = comfortTone(value);
+  return (
+    <div
+      className={`meter meter--${tone}`}
+      role="meter"
+      aria-label="Conforto no período"
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={value ?? undefined}
+      aria-valuetext={value === null ? 'sem dados' : formatPercent(value)}
+    >
+      <div className="meter__track">
+        <div className="meter__fill" style={{ width: `${value ?? 0}%` }} />
+      </div>
+      <span className="meter__value">{formatPercent(value)}</span>
+    </div>
+  );
+}

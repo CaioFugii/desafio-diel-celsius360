@@ -11,4 +11,16 @@ module.exports = {
   transform: {
     '^.+\\.tsx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.jest.json' }],
   },
+  collectCoverageFrom: [
+    'src/**/*.{ts,tsx}',
+    '!src/**/*.spec.{ts,tsx}',
+    '!src/testing/**',
+    '!src/main.tsx',
+    '!src/setupTests.ts',
+    '!src/vite-env.d.ts',
+    '!src/api/types.ts',
+  ],
+  coverageThreshold: {
+    global: { statements: 95, branches: 90, functions: 95, lines: 95 },
+  },
 };
