@@ -1,11 +1,22 @@
 name: celsius360
 
-# Os defaults abaixo servem apenas para rodar localmente com um único comando.
-# Em produção, os valores vêm de um secret manager (nunca versionados).
+# The defaults below are only for running locally with a single command.
+# In production, values come from a secret manager (never versioned).
 x-db-env: &db-env
   POSTGRES_USER: ${POSTGRES_USER:-celsius}
   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-celsius_local}
   POSTGRES_DB: ${POSTGRES_DB:-celsius360}
+
+x-backend-env: &backend-env
+  NODE_ENV: production
+  DATABASE_URL: postgres://${POSTGRES_USER:-celsius}:${POSTGRES_PASSWORD:-celsius_local}@db:5432/${POSTGRES_DB:-celsius360}
+  JWT_SECRET: ${JWT_SECRET:-local-dev-only-secret-change-me}
+  JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+  DATA_DIR: /data
+
+x-backend-build: &backend-build
+  context: .
+  dockerfile: backend/Dockerfile
 
 services:
   db:
@@ -23,16 +34,11 @@ services:
       retries: 20
 
   backend:
-    build:
-      context: .
-      dockerfile: backend/Dockerfile
+    build: *backend-build
+    image: celsius360/backend:local
     environment:
-      NODE_ENV: production
+      <<: *backend-env
       PORT: 3000
-      DATABASE_URL: postgres://${POSTGRES_USER:-celsius}:${POSTGRES_PASSWORD:-celsius_local}@db:5432/${POSTGRES_DB:-celsius360}
-      JWT_SECRET: ${JWT_SECRET:-local-dev-only-secret-change-me}
-      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
-      DATA_DIR: /data
     volumes:
       - ./data:/data:ro
     ports:
@@ -46,6 +52,25 @@ services:
       timeout: 5s
       retries: 20
       start_period: 10s
+
+  # Reproduz telemetrias.jsonl na ordem do arquivo, no ritmo de INGEST_PACKETS_PER_SECOND,
+  # como se os pacotes chegassem do broker. Retoma do checkpoint ao reiniciar e termina
+  # (exit 0) no fim do arquivo. Reprocessar: INGEST_FROM_START=true docker compose up ingestor
+  ingestor:
+    build: *backend-build
+    image: celsius360/backend:local
+    command: ["node", "dist/ingestion/main.js"]
+    environment:
+      <<: *backend-env
+      INGEST_PACKETS_PER_SECOND: ${INGEST_PACKETS_PER_SECOND:-2000}
+      INGEST_BATCH_SIZE: ${INGEST_BATCH_SIZE:-500}
+      INGEST_FROM_START: ${INGEST_FROM_START:-false}
+    volumes:
+      - ./data:/data:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: on-failure
 
   frontend:
     build:

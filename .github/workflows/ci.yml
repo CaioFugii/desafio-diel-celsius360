@@ -1,0 +1,65 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: timescale/timescaledb:2.17.2-pg16
+        env:
+          POSTGRES_USER: celsius
+          POSTGRES_PASSWORD: celsius_ci
+          POSTGRES_DB: celsius360
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U celsius"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      TEST_DATABASE_ADMIN_URL: postgres://celsius:celsius_ci@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter backend lint
+      - run: pnpm --filter backend typecheck
+      # unit + e2e + integration (real TimescaleDB), with minimum coverage thresholds
+      - run: pnpm --filter backend test:cov
+      - run: pnpm --filter backend build
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter frontend lint
+      - run: pnpm --filter frontend test -- --coverage
+      - run: pnpm --filter frontend build
+
+  compose:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sobe o ecossistema e espera a API e a web responderem
+        run: |
+          docker compose up -d --build --wait db backend frontend
+          curl -fsS http://localhost:8080/api/health
+          curl -fsS http://localhost:8080/ > /dev/null
+      - if: always()
+        run: docker compose logs --tail 200
