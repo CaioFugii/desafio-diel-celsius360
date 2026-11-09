@@ -1,0 +1,61 @@
+name: celsius360
+
+# Os defaults abaixo servem apenas para rodar localmente com um único comando.
+# Em produção, os valores vêm de um secret manager (nunca versionados).
+x-db-env: &db-env
+  POSTGRES_USER: ${POSTGRES_USER:-celsius}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-celsius_local}
+  POSTGRES_DB: ${POSTGRES_DB:-celsius360}
+
+services:
+  db:
+    image: timescale/timescaledb:2.17.2-pg16
+    environment:
+      <<: *db-env
+    ports:
+      - "${DB_PORT:-5434}:5432"
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER:-celsius}:${POSTGRES_PASSWORD:-celsius_local}@db:5432/${POSTGRES_DB:-celsius360}
+      JWT_SECRET: ${JWT_SECRET:-local-dev-only-secret-change-me}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-8h}
+      DATA_DIR: /data
+    volumes:
+      - ./data:/data:ro
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  db-data:

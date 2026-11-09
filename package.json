@@ -1,0 +1,19 @@
+{
+  "name": "desafio-diel-celsius360",
+  "private": true,
+  "description": "Versão reduzida do Celsius 360: ingestão, enriquecimento e visualização de telemetria IoT de temperatura",
+  "packageManager": "pnpm@9.1.4",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "stack:up": "docker compose up --build",
+    "stack:down": "docker compose down",
+    "stack:reset": "docker compose down -v",
+    "dev:backend": "pnpm --filter backend start:dev",
+    "dev:frontend": "pnpm --filter frontend dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test"
+  }
+}
