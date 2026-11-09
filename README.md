@@ -45,7 +45,7 @@ pnpm test           # Jest em backend e frontend
 │   ├── src/
 │   └── test/         testes e2e (Jest + supertest)
 ├── frontend/         React + Vite, servido por nginx no container
-├── data/             telemetrias.jsonl (e cadastro.json)
+├── data/             telemetrias.jsonl e cadastro.json fornecidos no desafio
 └── docker-compose.yml
 ```
 
@@ -93,7 +93,7 @@ O WebSocket se justificaria com tráfego do cliente para o servidor em tempo rea
 
 ### Autenticação e multi-tenant: JWT
 
-O login devolve um JWT com `sub`, `role` (`DIEL_ADMIN`, `CLIENT_MANAGER`, `STORE_MANAGER`) e o escopo (`clientId`, `storeIds`). Um guard global valida o token, e um serviço de escopo traduz o perfil em filtro aplicado em toda consulta. Assim, o isolamento não depende de cada endpoint lembrar de filtrar, e testes automatizados cobrem o vazamento entre tenants.
+O login devolve um JWT com `sub`, o perfil do cadastro (`admin_diel`, `gestor_cliente`, `gerente_loja`) e o escopo (`clienteId`, `lojaIds`). O cadastro não traz senhas: o seed gera o hash de uma senha de demonstração definida por variável de ambiente. Um guard global valida o token, e um serviço de escopo traduz o perfil em filtro aplicado em toda consulta. Assim, o isolamento não depende de cada endpoint lembrar de filtrar, e testes automatizados cobrem o vazamento entre tenants.
 
 ### Qualidade dos dados: primeira análise de `telemetrias.jsonl`
 
@@ -105,7 +105,7 @@ O login devolve um JWT com `sub`, `role` (`DIEL_ADMIN`, `CLIENT_MANAGER`, `STORE
 | Pacotes enviados depois (`saved_data: true`) | 247 | inserção pelo timestamp da amostra e re-refresh dos agregados afetados |
 | Pacotes fora de ordem por dispositivo | 217 | ordenação pelo tempo da amostra, não pela chegada |
 | Leituras `-127.0` e `85.0` | 333 amostras fora de 0–50 °C | códigos de erro típicos do sensor DS18B20 (desconectado / reset); descartadas como espúrias e contabilizadas |
-| Dispositivo `IOT099` | 481 pacotes | 26º dispositivo para 25 ambientes, provavelmente fora do cadastro: cru preservado, não entra nas séries |
+| Dispositivo `IOT099` | 481 pacotes | não consta no cadastro: cru preservado, não entra nas séries |
 
 ## Testes
 
