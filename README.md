@@ -18,7 +18,7 @@ A subida faz tudo sozinha, nesta ordem:
 
 1. **db**: PostgreSQL 16 + TimescaleDB.
 2. **backend**: aplica as migrações, carrega `data/cadastro.json` (seed idempotente) e sobe a API.
-3. **ingestor**: lê `data/telemetrias.jsonl` linha a linha, em ordem, a 2.000 pacotes/s (cerca de 90 s para o arquivo inteiro), e termina. As telas se atualizam sozinhas enquanto a ingestão roda (o indicador "Ao vivo" no cabeçalho mostra a conexão de tempo real); o andamento fica em `GET /api/ingestion/status`.
+3. **ingestor**: lê `data/telemetrias.jsonl` linha a linha, em ordem, a 300 pacotes/s (cerca de 10 min para o arquivo inteiro, tempo para acompanhar as telas mudando), e termina. As telas se atualizam sozinhas enquanto a ingestão roda (o indicador "Ao vivo" no cabeçalho mostra a conexão de tempo real); o andamento fica em `GET /api/ingestion/status`.
 4. **frontend**: build do React servido por nginx, com proxy de `/api` para o backend.
 
 | Serviço | URL |
@@ -33,6 +33,9 @@ Outros comandos úteis:
 ```bash
 # reprocessar o arquivo do início (idempotente: não duplica nada)
 docker compose run --rm -e INGEST_FROM_START=true ingestor
+
+# ingestão mais rápida (cerca de 90 s para o arquivo inteiro)
+INGEST_PACKETS_PER_SECOND=2000 docker compose up --build
 
 # ingestão sem limite de taxa (cerca de 2.700 pacotes/s numa máquina de desenvolvimento)
 INGEST_PACKETS_PER_SECOND=0 docker compose up --build
@@ -244,7 +247,7 @@ Resultado: 180.951 pacotes crus, 2.152.132 leituras válidas e 332 descartadas (
 - **Por que SSE.** O fluxo é unidirecional (servidor → navegador), então WebSocket não traria nada além de complexidade: SSE é HTTP comum, atravessa proxies, reconecta sozinho e o Nest tem suporte nativo (`@Sse()`). O nginx faz proxy de `/api` com `proxy_buffering off` e timeout de 1 h.
 - **Do ingestor à API pelo Postgres.** Depois de confirmar cada lote, o ingestor chama `pg_notify('ingestion_progress', ...)` com a última linha, o "agora" e os ambientes afetados (porta `IngestionNotifier`). A API escuta com `LISTEN` (porta `IngestionFeed`). Não há broker extra: o banco que os dois processos já usam faz a ponte, e o evento só sai depois do `COMMIT`, quando os dados já estão visíveis para as consultas.
 - **Uma conexão para todos os navegadores.** A API abre uma única conexão `LISTEN`, compartilhada por todos os streams (`share()` do RxJS): ela abre com o primeiro navegador, fecha quando o último sai e, se cair, reconecta após 2 s.
-- **Agrupamento.** Com 2.000 pacotes/s, a ingestão confirma vários lotes por segundo. A API junta os avisos em janelas de 1 s (maior "agora" e união dos ambientes), então cada navegador recebe no máximo um evento por segundo. Acima de 300 ambientes num lote, o aviso diz só "qualquer ambiente", para caber no limite de 8 kB do `NOTIFY`.
+- **Agrupamento.** No ritmo padrão (300 pacotes/s, lotes de 500), sai um aviso a cada 1,7 s; com a taxa mais alta ou sem limite, a ingestão confirma vários lotes por segundo. A API junta os avisos em janelas de 1 s (maior "agora" e união dos ambientes), então cada navegador recebe no máximo um evento por segundo. Acima de 300 ambientes num lote, o aviso diz só "qualquer ambiente", para caber no limite de 8 kB do `NOTIFY`.
 - **No navegador.** O evento invalida as consultas afetadas do TanStack Query: a lista de lojas sempre, e o resumo e a série só dos ambientes citados. Uma requisição em andamento não é reiniciada, para que eventos frequentes não impeçam a consulta de terminar. Na atualização em tempo real, os painéis não ficam esmaecidos como na troca de filtro; o efeito visual fica reservado para mudanças pedidas pelo usuário.
 - **Sem replay, e por isso sem perda.** O aviso é só um gatilho: os dados vêm sempre da API. Depois de uma reconexão, o navegador invalida tudo, cobrindo os eventos perdidos. Por isso o `NOTIFY` pode ser best effort: se falhar, o ingestor registra um aviso e segue, e a ingestão nunca para por causa do tempo real. Se o servidor responder com erro (por exemplo, 502 enquanto a API reinicia), o `EventSource` desiste; nesse caso o cliente abre uma nova conexão após 5 s.
 - **Indicador.** O cabeçalho mostra "Ao vivo", "Conectando…" ou "Reconectando…" (com `role="status"`), para o usuário saber se os números podem estar desatualizados.

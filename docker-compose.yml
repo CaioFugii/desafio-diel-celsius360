@@ -62,7 +62,7 @@ services:
     command: ["node", "dist/ingestion/main.js"]
     environment:
       <<: *backend-env
-      INGEST_PACKETS_PER_SECOND: ${INGEST_PACKETS_PER_SECOND:-2000}
+      INGEST_PACKETS_PER_SECOND: ${INGEST_PACKETS_PER_SECOND:-300}
       INGEST_BATCH_SIZE: ${INGEST_BATCH_SIZE:-500}
       INGEST_FROM_START: ${INGEST_FROM_START:-false}
     volumes:

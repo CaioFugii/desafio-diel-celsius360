@@ -19,7 +19,7 @@ describe('validateEnv', () => {
     expect(env).toMatchObject({
       INGEST_FILE: 'telemetrias.jsonl',
       INGEST_BATCH_SIZE: 500,
-      INGEST_PACKETS_PER_SECOND: 2000,
+      INGEST_PACKETS_PER_SECOND: 300,
       INGEST_FROM_START: false,
     });
   });

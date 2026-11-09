@@ -56,7 +56,7 @@ export class Env {
   /** Replay speed; 0 disables throttling. */
   @IsInt()
   @Min(0)
-  INGEST_PACKETS_PER_SECOND: number = 2_000;
+  INGEST_PACKETS_PER_SECOND: number = 300;
 
   @Transform(({ obj, key }) => parseBoolean(obj[key]))
   @IsBoolean()
