@@ -1,7 +1,8 @@
 import { formatPercent } from '../lib/format';
 import { comfortTone } from '../lib/labels';
+import { LiveValue } from './LiveValue';
 
-export function ComfortMeter({ value }: { value: number | null }) {
+export function ComfortMeter({ value, scope }: { value: number | null; scope?: string }) {
   const tone = comfortTone(value);
   return (
     <div
@@ -16,7 +17,9 @@ export function ComfortMeter({ value }: { value: number | null }) {
       <div className="meter__track">
         <div className="meter__fill" style={{ width: `${value ?? 0}%` }} />
       </div>
-      <span className="meter__value">{formatPercent(value)}</span>
+      <span className="meter__value">
+        <LiveValue value={value} kind="percent" better="up" scope={scope} />
+      </span>
     </div>
   );
 }

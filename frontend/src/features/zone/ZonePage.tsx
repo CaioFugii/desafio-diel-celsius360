@@ -3,6 +3,7 @@ import { ApiError } from '../../api/http';
 import { useZoneSeries, useZoneSummary } from '../../api/queries';
 import { PeriodKey, ZoneSummary } from '../../api/types';
 import { Badge } from '../../components/Badge';
+import { LiveValue } from '../../components/LiveValue';
 import { PeriodSelector } from '../../components/PeriodSelector';
 import { Empty, ErrorMessage, Loading } from '../../components/QueryState';
 import { formatDateTime, formatTemperature } from '../../lib/format';
@@ -19,6 +20,7 @@ export function ZonePage() {
   const period = parsePeriod(searchParams.get('period'));
   const summary = useZoneSummary(zoneId, period);
   const series = useZoneSeries(zoneId, period);
+  const scope = `${zoneId}|${period}`;
 
   const changePeriod = (next: PeriodKey) =>
     setSearchParams(next === DEFAULT_ZONE_PERIOD ? {} : { period: next }, { replace: true });
@@ -44,7 +46,7 @@ export function ZonePage() {
   return (
     <>
       <BackLink />
-      <ZoneHeader summary={data} />
+      <ZoneHeader summary={data} scope={scope} />
 
       <div className="toolbar">
         <PeriodSelector value={period} onChange={changePeriod} />
@@ -54,7 +56,7 @@ export function ZonePage() {
         </span>
       </div>
 
-      <ZoneIndicators indicators={data.indicators} />
+      <ZoneIndicators indicators={data.indicators} scope={scope} />
 
       <section className="panel" aria-busy={series.isFetching && series.isPlaceholderData}>
         <h2>Temperatura</h2>
@@ -86,7 +88,7 @@ function BackLink() {
   );
 }
 
-function ZoneHeader({ summary }: { summary: ZoneSummary }) {
+function ZoneHeader({ summary, scope }: { summary: ZoneSummary; scope: string }) {
   const condition = ZONE_CONDITION[summary.current.condition];
   const device = DEVICE_STATUS[summary.device.status];
   const timeZone = summary.store.timezone;
@@ -104,7 +106,9 @@ function ZoneHeader({ summary }: { summary: ZoneSummary }) {
         </p>
       </div>
       <div className="zone-head__now">
-        <span className="zone-head__temp">{formatTemperature(summary.current.temperature)}</span>
+        <span className="zone-head__temp">
+          <LiveValue value={summary.current.temperature} kind="temperature" scope={scope} />
+        </span>
         <Badge tone={condition.tone}>{condition.text}</Badge>
         <span className="cell-sub">
           Dispositivo {summary.device.id ?? '—'}: <Badge tone={device.tone}>{device.text}</Badge>

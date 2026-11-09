@@ -56,5 +56,5 @@ export function renderWithProviders(
       </QueryClientProvider>
     </ApiProvider>,
   );
-  return { ...result, api };
+  return { ...result, api, client };
 }

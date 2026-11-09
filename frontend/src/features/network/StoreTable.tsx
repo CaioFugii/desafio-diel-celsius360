@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { SortOrder, Store, StoreSortKey, ZoneStatus } from '../../api/types';
 import { Badge } from '../../components/Badge';
 import { ComfortMeter } from '../../components/ComfortMeter';
+import { LiveValue } from '../../components/LiveValue';
 import { formatDateTime, formatTemperature } from '../../lib/format';
 import { STORE_STATUS, ZONE_CONDITION } from '../../lib/labels';
 
@@ -10,6 +11,8 @@ interface StoreTableProps {
   stores: Store[];
   sort: StoreSortKey;
   order: SortOrder;
+  /** Scope of the data on screen; see LiveValue. */
+  scope: string;
   onSort(sort: StoreSortKey): void;
 }
 
@@ -21,7 +24,7 @@ const COLUMNS: Array<{ key: StoreSortKey; label: string }> = [
   { key: 'outOfRange', label: 'Fora da faixa agora' },
 ];
 
-export function StoreTable({ stores, sort, order, onSort }: StoreTableProps) {
+export function StoreTable({ stores, sort, order, scope, onSort }: StoreTableProps) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
 
   const toggle = (id: string) =>
@@ -87,21 +90,26 @@ export function StoreTable({ stores, sort, order, onSort }: StoreTableProps) {
                   </div>
                 </td>
                 <td>
-                  <ComfortMeter value={store.comfortPct} />
+                  <ComfortMeter value={store.comfortPct} scope={scope} />
                 </td>
                 <td>
                   <span
                     className={store.zonesOutOfRange > 0 ? 'count count--danger' : 'count'}
                     aria-label={`${store.zonesOutOfRange} ambientes fora da faixa`}
                   >
-                    {store.zonesOutOfRange}
+                    <LiveValue
+                      value={store.zonesOutOfRange}
+                      kind="count"
+                      better="down"
+                      scope={scope}
+                    />
                   </span>
                 </td>
               </tr>
               {isExpanded && (
                 <tr id={`zones-${store.id}`} className="table__details">
                   <td colSpan={COLUMNS.length + 1}>
-                    <ZoneList zones={store.zones} timeZone={store.timezone} />
+                    <ZoneList zones={store.zones} timeZone={store.timezone} scope={scope} />
                   </td>
                 </tr>
               )}
@@ -113,7 +121,15 @@ export function StoreTable({ stores, sort, order, onSort }: StoreTableProps) {
   );
 }
 
-function ZoneList({ zones, timeZone }: { zones: ZoneStatus[]; timeZone: string }) {
+function ZoneList({
+  zones,
+  timeZone,
+  scope,
+}: {
+  zones: ZoneStatus[];
+  timeZone: string;
+  scope: string;
+}) {
   if (zones.length === 0) return <p className="muted">Nenhum ambiente cadastrado.</p>;
   return (
     <ul className="zone-grid">
@@ -126,12 +142,14 @@ function ZoneList({ zones, timeZone }: { zones: ZoneStatus[]; timeZone: string }
                 <span className="cell-title">{zone.name}</span>
                 <Badge tone={condition.tone}>{condition.text}</Badge>
               </div>
-              <div className="zone-card__temp">{formatTemperature(zone.currentTemperature)}</div>
+              <div className="zone-card__temp">
+                <LiveValue value={zone.currentTemperature} kind="temperature" scope={scope} />
+              </div>
               <div className="cell-sub">
                 Faixa {formatTemperature(zone.comfortBand.min)} – {formatTemperature(zone.comfortBand.max)}
               </div>
               <div className="cell-sub">
-                Conforto no período: <ComfortMeter value={zone.comfortPct} />
+                Conforto no período: <ComfortMeter value={zone.comfortPct} scope={scope} />
               </div>
               <div className="cell-sub">
                 {zone.deviceId ?? 'sem dispositivo'} · última leitura{' '}

@@ -4,6 +4,7 @@ import { StoreListParams, StoreSortKey } from '../../api/types';
 import { Pagination } from '../../components/Pagination';
 import { Empty, ErrorMessage, Loading } from '../../components/QueryState';
 import { formatDateTime } from '../../lib/format';
+import { useDataScope } from '../../lib/use-data-scope';
 import { NetworkFilters } from './NetworkFilters';
 import {
   parseNetworkParams,
@@ -21,6 +22,7 @@ export function NetworkPage() {
   const params = parseNetworkParams(searchParams);
   const stores = useStores(params);
   const customers = useCustomers();
+  const scope = useDataScope(JSON.stringify(params), stores.isPlaceholderData);
 
   const apply = (next: StoreListParams) => setSearchParams(serializeNetworkParams(next));
   const change = (patch: Partial<StoreListParams>) => apply(updateNetworkParams(params, patch));
@@ -40,7 +42,7 @@ export function NetworkPage() {
         )}
       </div>
 
-      {stores.data && <SummaryCards summary={stores.data.summary} />}
+      {stores.data && <SummaryCards summary={stores.data.summary} scope={scope} />}
 
       <NetworkFilters params={params} customers={customers.data ?? []} onChange={change} />
 
@@ -56,6 +58,7 @@ export function NetworkPage() {
               stores={stores.data.items}
               sort={params.sort}
               order={params.order}
+              scope={scope}
               onSort={sortBy}
             />
             <Pagination

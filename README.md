@@ -70,7 +70,7 @@ pnpm --filter frontend test -- --coverage
 | | Suítes | Testes | Cobertura (statements / branches) |
 | --- | --- | --- | --- |
 | Backend | 34 | 210 | 98,6% / 94,9% |
-| Frontend | 15 | 91 | 99,8% / 97,1% |
+| Frontend | 19 | 115 | 99,8% / 97,7% |
 
 - **Unitários** (`backend/test/unit`, espelhando `backend/src`): regras de domínio puras (horário de funcionamento por fuso, qualidade da leitura, conforto, status, resolução), serviços com fakes das portas e parser do cadastro.
 - **Integração** (`backend/test/integration`): cada suíte cria um banco novo no TimescaleDB, aplica as migrações e exercita o caminho real: seed do cadastro, ingestão (duplicatas, pacotes atrasados, retomada pelo checkpoint, reprocessamento sem alterar contagens), read models sobre os continuous aggregates, a API HTTP com supertest e o tempo real (os `NOTIFY` de cada lote chegam pelo `LISTEN`, um stream SSE de verdade recebe os eventos e é encerrado quando a API desliga).
@@ -248,6 +248,7 @@ Resultado: 180.951 pacotes crus, 2.152.132 leituras válidas e 332 descartadas (
 - **No navegador.** O evento invalida as consultas afetadas do TanStack Query: a lista de lojas sempre, e o resumo e a série só dos ambientes citados. Uma requisição em andamento não é reiniciada, para que eventos frequentes não impeçam a consulta de terminar. Na atualização em tempo real, os painéis não ficam esmaecidos como na troca de filtro; o efeito visual fica reservado para mudanças pedidas pelo usuário.
 - **Sem replay, e por isso sem perda.** O aviso é só um gatilho: os dados vêm sempre da API. Depois de uma reconexão, o navegador invalida tudo, cobrindo os eventos perdidos. Por isso o `NOTIFY` pode ser best effort: se falhar, o ingestor registra um aviso e segue, e a ingestão nunca para por causa do tempo real. Se o servidor responder com erro (por exemplo, 502 enquanto a API reinicia), o `EventSource` desiste; nesse caso o cliente abre uma nova conexão após 5 s.
 - **Indicador.** O cabeçalho mostra "Ao vivo", "Conectando…" ou "Reconectando…" (com `role="status"`), para o usuário saber se os números podem estar desatualizados.
+- **Valores que mudam ao vivo** (`LiveValue`): quando um número muda na tela, o fundo recebe um destaque suave por 450 ms, o valor desliza do anterior para o novo e aparece a variação em relação à leitura anterior (▲ 0,3 °C, ▼ 1,2 p.p.), verde ou vermelha conforme a direção boa de cada indicador (neutra para temperatura). A comparação usa a precisão exibida, então oscilações que não aparecem na tela não piscam. Trocar período, filtro ou página define uma nova base, sem destaque nem variação, mesmo enquanto os dados anteriores ainda estão na tela. Com `prefers-reduced-motion`, o valor troca sem transição.
 
 ### Aplicação web
 

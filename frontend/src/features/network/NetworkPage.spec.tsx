@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { ApiError } from '../../api/http';
 import { store, storeList, zoneStatus } from '../../testing/fixtures';
 import { fakeApi, renderWithProviders } from '../../testing/render';
@@ -194,5 +194,26 @@ describe('NetworkPage', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('database unavailable');
     fireEvent.click(screen.getByRole('button', { name: 'Tentar novamente' }));
     expect(await screen.findByRole('table')).toBeInTheDocument();
+  });
+
+  it('shows how live updates moved the numbers, but not changes the user asked for', async () => {
+    const summary = (comfortPct: number) =>
+      storeList({ summary: { ...storeList().summary, comfortPct } });
+    const listStores = jest
+      .fn()
+      .mockResolvedValueOnce(summary(87.2))
+      .mockResolvedValueOnce(summary(88.4))
+      .mockResolvedValue(summary(70));
+    const { client } = renderPage('/', fakeApi({ listStores }));
+    const cards = await screen.findByRole('region', { name: 'Resumo da rede' });
+    const changes = () => within(cards).queryAllByTitle('Variação em relação à leitura anterior');
+
+    await act(() => client.invalidateQueries({ queryKey: ['stores'] }));
+    await waitFor(() => expect(changes()).toHaveLength(1));
+    expect(changes()[0]).toHaveTextContent('aumentou 1,2 p.p.');
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Último dia' }));
+    await waitFor(() => expect(within(cards).getByText('70%')).toBeInTheDocument());
+    expect(changes()).toHaveLength(0);
   });
 });

@@ -404,10 +404,68 @@ a:focus-visible {
   background: var(--danger);
 }
 
+.meter__fill {
+  transition: width 450ms ease-out;
+}
+
 .meter__value {
   font-variant-numeric: tabular-nums;
   font-weight: 600;
   min-width: 44px;
+}
+
+/* Live values: highlight, change tag */
+.live-value {
+  position: relative;
+  isolation: isolate;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.live-value__flash {
+  position: absolute;
+  inset: -2px -6px;
+  z-index: -1;
+  border-radius: 6px;
+  background: var(--green-light);
+  opacity: 0;
+  pointer-events: none;
+  animation: live-value-flash 450ms ease-out;
+}
+
+@keyframes live-value-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.live-value__change {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.live-value__change--neutral {
+  color: var(--gray-600);
+}
+
+.live-value__change--good {
+  color: var(--green-dark);
+}
+
+.live-value__change--bad {
+  color: #c21d1d;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .meter__fill {
+    transition: none;
+  }
 }
 
 .count {
